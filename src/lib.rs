@@ -1,12 +1,11 @@
+use serde::Deserialize;
 use std::fs::{self, File};
 use std::io::{self, Write};
-use serde::Deserialize;
-
 
 #[derive(Deserialize)]
 pub struct User {
-    user: String,
-    pass: String,
+    pub user: String,
+    pub pass: String,
 }
 
 impl std::fmt::Display for User {
