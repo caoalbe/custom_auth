@@ -1,10 +1,12 @@
 use axum::extract::Json;
+use axum::http::{HeaderMap, header};
+use axum::response::IntoResponse;
 use axum::{Router, routing::post};
 use sha2::{Digest, Sha256};
 
 use custom_auth::{User, where_row_match, write_string_to_file};
 
-async fn sign_up(Json(payload): Json<User>) -> &'static str {
+async fn sign_up(Json(payload): Json<User>) -> impl IntoResponse {
     let User { user, pass } = payload;
     let payload = User {
         user,
@@ -15,17 +17,22 @@ async fn sign_up(Json(payload): Json<User>) -> &'static str {
     "User Created"
 }
 
-async fn sign_in(Json(payload): Json<User>) -> &'static str {
+async fn sign_in(Json(payload): Json<User>) -> impl IntoResponse {
     let User { user, pass } = payload;
     let payload = User {
         user,
         pass: encrypt_string(pass),
     };
 
+    let mut headers: HeaderMap = HeaderMap::new();
     if where_row_match(payload.to_string().as_str()) {
-        "signed in"
+        headers.insert(
+            header::SET_COOKIE,
+            "test_cookie=cookie_value".parse().unwrap(),
+        );
+        (headers, "signed in")
     } else {
-        "failed sign in"
+        (headers, "failed sign in")
     }
 }
 
