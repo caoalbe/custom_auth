@@ -2,6 +2,8 @@ use axum::extract::Json;
 use axum::http::{HeaderMap, header};
 use axum::response::IntoResponse;
 use axum::{Router, routing::post};
+use jsonwebtoken::{EncodingKey, Header, encode};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use custom_auth::{User, where_row_match, write_string_to_file};
@@ -26,10 +28,14 @@ async fn sign_in(Json(payload): Json<User>) -> impl IntoResponse {
 
     let mut headers: HeaderMap = HeaderMap::new();
     if where_row_match(payload.to_string().as_str()) {
-        headers.insert(
-            header::SET_COOKIE,
-            "test_cookie=cookie_value".parse().unwrap(),
-        );
+        let mut jwt: String = match generate_jwt("test payload".to_string(), "12345") {
+            Ok(val) => val,
+            Err(e) => {
+                panic!("generate_jwt error - {}", e)
+            }
+        };
+        jwt = format!("custom_auth={jwt}");
+        headers.insert(header::SET_COOKIE, jwt.parse().unwrap());
         (headers, "signed in")
     } else {
         (headers, "failed sign in")
@@ -40,6 +46,29 @@ fn encrypt_string(data: String) -> String {
     let data: &[u8] = data.as_bytes(); // convert to bytes
     let data: Vec<u8> = Sha256::digest(data)[..].to_vec(); // hash with sha256
     data.iter().map(|b: &u8| format!("{:02X}", b)).collect() // convert to hexadecimal representation
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    exp: usize,
+    iat: usize,
+    user: String,
+}
+
+fn generate_jwt(user: String, encoding_key: &str) -> Result<String, jsonwebtoken::errors::Error> {
+    let header = Header::new(jsonwebtoken::Algorithm::HS512);
+
+    let my_claims = Claims {
+        exp: 0,
+        iat: 0,
+        user,
+    };
+
+    encode(
+        &header,
+        &my_claims,
+        &EncodingKey::from_secret(encoding_key.as_ref()),
+    )
 }
 
 #[tokio::main]
