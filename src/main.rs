@@ -3,11 +3,11 @@ use axum::http::{HeaderMap, header};
 use axum::response::IntoResponse;
 use axum::{Router, routing::post};
 use axum_extra::extract::cookie::CookieJar;
-use jsonwebtoken::{EncodingKey, Header, encode};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use custom_auth::{User, where_row_match, write_string_to_file};
+use custom_auth::{User, increment_user, where_row_match, write_string_to_file};
 
 async fn sign_up(Json(payload): Json<User>) -> impl IntoResponse {
     let User { user, pass, count } = payload;
@@ -32,7 +32,7 @@ async fn sign_in(Json(payload): Json<User>) -> impl IntoResponse {
     let mut headers: HeaderMap = HeaderMap::new();
     if where_row_match(payload.to_string().as_str()) {
         // TODO: read encoding_key from .env file
-        let mut jwt: String = match generate_jwt("test payload".to_string(), "12345") {
+        let mut jwt: String = match generate_jwt(payload.user, "12345") {
             Ok(val) => val,
             Err(e) => {
                 panic!("generate_jwt error - {}", e)
@@ -55,11 +55,10 @@ async fn increment_count(jar: CookieJar) -> impl IntoResponse {
     };
 
     // decode the cookie and increment
-    // ...
+    let Claims { user, .. } = decode_jwt(jwt.to_string(), "12345");
+    increment_user(&user);
 
-    println!("cookie: {jwt}");
-
-    return "found cookie value".to_string();
+    return "incremented!".to_string();
 }
 
 fn encrypt_string(data: String) -> String {
@@ -79,8 +78,8 @@ fn generate_jwt(user: String, encoding_key: &str) -> Result<String, jsonwebtoken
     let header = Header::new(jsonwebtoken::Algorithm::HS512);
 
     let my_claims = Claims {
-        exp: 0,
-        iat: 0,
+        exp: 1779457658,
+        iat: 1779457658,
         user,
     };
 
@@ -89,6 +88,23 @@ fn generate_jwt(user: String, encoding_key: &str) -> Result<String, jsonwebtoken
         &my_claims,
         &EncodingKey::from_secret(encoding_key.as_ref()),
     )
+}
+
+fn decode_jwt(jwt_token: String, encoding_key: &str) -> Claims {
+    let output = decode::<Claims>(
+        &jwt_token,
+        &DecodingKey::from_secret(encoding_key.as_ref()),
+        &Validation::new(jsonwebtoken::Algorithm::HS512),
+    );
+
+    match output {
+        Ok(token_data) => {
+            return token_data.claims;
+        }
+        Err(e) => {
+            panic!("decoding error: {}", e)
+        }
+    }
 }
 
 #[tokio::main]

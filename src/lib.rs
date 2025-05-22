@@ -43,3 +43,37 @@ pub fn where_row_match(target_str: &str) -> bool {
     }
     return false;
 }
+
+pub fn increment_user(target_user: &str) -> () {
+    let mut curr: String = String::new();
+
+    let to_search = read_file_to_string();
+    for row_str in to_search.split("\n") {
+        if row_str.is_empty() {
+            continue;
+        }
+        let row_user = row_str.split_whitespace().next().unwrap();
+
+        if row_user == target_user {
+            let row_count: usize = row_str
+                .split_whitespace()
+                .nth(2)
+                .unwrap()
+                .parse::<usize>()
+                .unwrap()
+                + 1;
+            let new_row: String = row_str
+                .split_whitespace()
+                .take(2)
+                .collect::<Vec<&str>>()
+                .join(" ");
+            curr = format!("{curr}{new_row} {row_count}\n");
+        } else {
+            curr = format!("{curr}{row_str}\n");
+        }
+    }
+
+    let mut file = File::create(FILE_NAME).unwrap();
+    file.write_all(curr.as_bytes()).unwrap();
+    ()
+}
