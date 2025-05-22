@@ -9,10 +9,11 @@ use sha2::{Digest, Sha256};
 use custom_auth::{User, where_row_match, write_string_to_file};
 
 async fn sign_up(Json(payload): Json<User>) -> impl IntoResponse {
-    let User { user, pass } = payload;
+    let User { user, pass , count} = payload;
     let payload = User {
         user,
         pass: encrypt_string(pass),
+        count,
     };
 
     write_string_to_file(payload.to_string().as_str()).unwrap();
@@ -20,10 +21,11 @@ async fn sign_up(Json(payload): Json<User>) -> impl IntoResponse {
 }
 
 async fn sign_in(Json(payload): Json<User>) -> impl IntoResponse {
-    let User { user, pass } = payload;
+    let User { user, pass , count} = payload;
     let payload = User {
         user,
         pass: encrypt_string(pass),
+        count,
     };
 
     let mut headers: HeaderMap = HeaderMap::new();
