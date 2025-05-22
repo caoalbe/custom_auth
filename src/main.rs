@@ -2,6 +2,7 @@ use axum::extract::Json;
 use axum::http::{HeaderMap, header};
 use axum::response::IntoResponse;
 use axum::{Router, routing::post};
+use axum_extra::extract::cookie::CookieJar;
 use jsonwebtoken::{EncodingKey, Header, encode};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -9,7 +10,7 @@ use sha2::{Digest, Sha256};
 use custom_auth::{User, where_row_match, write_string_to_file};
 
 async fn sign_up(Json(payload): Json<User>) -> impl IntoResponse {
-    let User { user, pass , count} = payload;
+    let User { user, pass, count } = payload;
     let payload = User {
         user,
         pass: encrypt_string(pass),
@@ -21,7 +22,7 @@ async fn sign_up(Json(payload): Json<User>) -> impl IntoResponse {
 }
 
 async fn sign_in(Json(payload): Json<User>) -> impl IntoResponse {
-    let User { user, pass , count} = payload;
+    let User { user, pass, count } = payload;
     let payload = User {
         user,
         pass: encrypt_string(pass),
@@ -42,6 +43,20 @@ async fn sign_in(Json(payload): Json<User>) -> impl IntoResponse {
     } else {
         (headers, "failed sign in")
     }
+}
+
+async fn increment_count(jar: CookieJar) -> impl IntoResponse {
+    let jwt = match jar.get("custom_auth") {
+        Some(cookie) => cookie.value(),
+        None => { return "no cookie found".to_string();  },
+    };
+
+    // decode the cookie and increment
+    // ...
+
+    println!("cookie: {jwt}");
+
+    return "found cookie value".to_string();
 }
 
 fn encrypt_string(data: String) -> String {
@@ -78,7 +93,8 @@ async fn main() {
     // build our application with a single route
     let app = Router::new()
         .route("/signin", post(sign_in))
-        .route("/signup", post(sign_up));
+        .route("/signup", post(sign_up))
+        .route("/increment", post(increment_count));
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
