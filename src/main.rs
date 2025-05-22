@@ -31,6 +31,7 @@ async fn sign_in(Json(payload): Json<User>) -> impl IntoResponse {
 
     let mut headers: HeaderMap = HeaderMap::new();
     if where_row_match(payload.to_string().as_str()) {
+        // TODO: read encoding_key from .env file
         let mut jwt: String = match generate_jwt("test payload".to_string(), "12345") {
             Ok(val) => val,
             Err(e) => {
@@ -48,7 +49,9 @@ async fn sign_in(Json(payload): Json<User>) -> impl IntoResponse {
 async fn increment_count(jar: CookieJar) -> impl IntoResponse {
     let jwt = match jar.get("custom_auth") {
         Some(cookie) => cookie.value(),
-        None => { return "no cookie found".to_string();  },
+        None => {
+            return "no cookie found".to_string();
+        }
     };
 
     // decode the cookie and increment
